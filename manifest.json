@@ -18,7 +18,7 @@
     "displayName": "Text Transform",
     "description": "Opens the text case picker (UPPERCASE, lowercase, Capitalize)",
     "category": "Utilities",
-    "defaultSection": "right",
+    "defaultSection": "center",
     "allowMultiple": false
   }
 }
