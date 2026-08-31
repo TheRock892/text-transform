@@ -98,5 +98,5 @@ sleep 0.15
 if [[ $METHOD == shift-insert ]]; then
   wtype -M shift -k Insert -m shift 2>/dev/null || true
 else
-  wtype "$OUT" 2>/dev/null || true
+  printf '%s' "$OUT" | wtype - 2>/dev/null || true
 fi
