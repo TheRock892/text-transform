@@ -37,7 +37,7 @@ All of the above ship with Omarchy by default.
 From a git URL (recommended):
 
 ```bash
-omarchy plugin add https://github.com/<you>/text-transform --enable
+omarchy plugin add https://github.com/TheRock892/text-transform --enable
 ```
 
 Or copy the folder into the user plugins directory and enable it:
@@ -55,6 +55,18 @@ omarchy plugin enable text-transform
 
 The plugin id is `text-transform`; change the `id` field in `manifest.json`
 to your own `author.plugin` namespace if you publish it.
+
+## Removal
+
+```bash
+omarchy plugin remove text-transform
+```
+
+Or disable it without removing the files:
+
+```bash
+omarchy plugin disable text-transform
+```
 
 ## Usage
 
