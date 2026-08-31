@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+
+# omarchy:summary=Transform highlighted text and replace it in place
+# omarchy:group=text
+# omarchy:args=[--shift-insert] [--copy-only] [--get-selection] <upcase|downcase|capitalize>
+# omarchy:examples=capitalize-text capitalize | omarchy-text capitalize --shift-insert
+# omarchy:hidden=true
+
+set -u
+
+# Resolve the plugin's bin/ directory so the script keeps working wherever the
+# plugin is installed (and through symlinked checkouts during development).
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)"
+TRANSFORM="$SCRIPT_DIR/capitalize-text-transform.py"
+
+MODE=""
+METHOD="type" # type | shift-insert | copy-only
+GET_SELECTION=false
+
+usage() {
+  cat <<'USAGE'
+Usage: capitalize-text [--shift-insert] [--copy-only] <upcase|downcase|capitalize>
+
+Reads the currently highlighted text (primary selection, clipboard as a
+fallback), transforms it, and replaces the highlight in place.
+
+Operations:
+  upcase        EVERY LETTER BECOMES UPPERCASE
+  downcase      every letter becomes lowercase
+  capitalize    The First Letter Of Every Word Is Uppercased
+
+Options:
+  --shift-insert  Paste the result with Shift+Insert instead of typing it
+  --copy-only     Copy the transformed text to the clipboard and do nothing else
+  --get-selection Print the current selection and exit (used by the overlay preview)
+  -h, --help      Show this help and exit
+USAGE
+}
+
+notify() {
+  local title="$1"
+  local message="$2"
+  if command -v omarchy-notification-send >/dev/null 2>&1; then
+    omarchy-notification-send -g "Aa" "$message"
+  elif command -v notify-send >/dev/null 2>&1; then
+    notify-send --app-name="$title" "$title" "$message"
+  fi
+  printf '%s: %s\n' "$title" "$message" >&2
+}
+
+# Highlighted text is the primary selection; fall back to the clipboard when
+# the primary is unset. Nothing is printed when there is no text at all.
+get_selection() {
+  local primary
+  primary="$(wl-paste --no-newline --primary 2>/dev/null)" && [[ -n $primary ]] || primary="$(wl-paste --no-newline 2>/dev/null)"
+  printf '%s' "$primary"
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --shift-insert) METHOD="shift-insert" ;;
+    --copy-only) METHOD="copy-only" ;;
+    --get-selection) GET_SELECTION=true ;;
+    upcase | downcase | capitalize) MODE="$arg" ;;
+    -h | --help) usage; exit 0 ;;
+    *) notify "Capitalize Text" "Unknown argument: $arg" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+if [[ $GET_SELECTION == true ]]; then
+  get_selection
+  exit 0
+fi
+
+[[ -n $MODE ]] || { usage >&2; exit 2; }
+
+TEXT="$(get_selection)"
+if [[ -z $TEXT ]]; then
+  notify "Capitalize Text" "Highlight some text first, then try again."
+  exit 1
+fi
+
+OUT="$(printf '%s' "$TEXT" | python3 "$TRANSFORM" "$MODE")" || exit 1
+if [[ -z $OUT ]]; then
+  notify "Capitalize Text" "The selection could not be transformed."
+  exit 1
+fi
+
+printf '%s' "$OUT" | wl-copy
+
+if [[ $METHOD == copy-only ]]; then
+  exit 0
+fi
+
+# Wait for the shell to hand keyboard focus back before typing or pasting.
+sleep 0.15
+
+if [[ $METHOD == shift-insert ]]; then
+  wtype -M shift -k Insert -m shift 2>/dev/null || true
+else
+  wtype "$OUT" 2>/dev/null || true
+fi

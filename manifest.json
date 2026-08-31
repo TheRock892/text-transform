@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "capitalize-text",
+  "name": "Capitalize Text",
+  "version": "1.0.0",
+  "author": "TheRock892",
+  "description": "Replace highlighted text with UPPERCASE, lowercase, or Capitalize from a small on-screen picker",
+  "kinds": [
+    "overlay"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "CapitalizeText.qml"
+  }
+}
