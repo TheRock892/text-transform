@@ -6,9 +6,9 @@ import qs.Commons
 import qs.Ui
 
 // On-screen picker for transforming the highlighted text. Summoned with
-// `omarchy-shell shell toggle capitalize-text` and bound to a key in
+// `omarchy-shell shell toggle text-transform` and bound to a key in
 // ~/.config/hypr/bindings.lua. Picking a mode types the transformed text over
-// the current selection; the heavy lifting lives in bin/capitalize-text.
+// the current selection; the heavy lifting lives in bin/text-transform.
 Item {
   id: root
 
@@ -16,7 +16,7 @@ Item {
   property var manifest: null
 
   readonly property string sourceDir: root.manifest ? String(root.manifest.__sourceDir || "") : ""
-  readonly property string scriptPath: root.sourceDir ? root.sourceDir + "/bin/capitalize-text" : ""
+  readonly property string scriptPath: root.sourceDir ? root.sourceDir + "/bin/text-transform" : ""
 
   property bool opened: false
   property bool cursorActive: false
@@ -38,20 +38,40 @@ Item {
   property int contentSpacing: Style.spacing.md
   property int headerHeight: Math.max(Style.space(34), Style.font.title + Style.spacing.controlPaddingY * 2)
   property int cardWidth: Math.min(Style.space(440), panel.width - Style.gapsOut * 2)
-  property int cardHeight: Math.min(Style.space(300), panel.height - Style.gapsOut * 2)
   property int rowHeight: Math.max(Style.space(52), Style.font.body + Style.font.caption + Style.spacing.controlPaddingY * 2)
+  // Header + one row per mode, plus the Column's inter-item spacing (modes.length
+  // gaps: one after the header and one between each subsequent row) and the
+  // card's own top/bottom padding — no extra height left over below the rows.
+  readonly property int contentHeight: root.headerHeight + (root.modes.length * root.rowHeight) + (root.modes.length * root.contentSpacing)
+  property int cardHeight: Math.min(root.contentHeight + card.contentTopInset + card.contentBottomInset, panel.height - Style.gapsOut * 2)
 
   property var modes: [
-    { mode: "upcase", title: "Uppercase", hint: "U", sample: "EVERYTHING UPPER" },
-    { mode: "downcase", title: "Lowercase", hint: "L", sample: "everything lower" },
-    { mode: "capitalize", title: "Capitalize", hint: "C", sample: "Every Word In Title" }
+    { mode: "upcase", title: "UPPERCASE", hint: "U" },
+    { mode: "downcase", title: "lowercase", hint: "L" },
+    { mode: "capitalize", title: "Capitalize", hint: "C" }
   ]
 
   readonly property bool hasSelection: root.selection.length > 0
 
+  function transformText(text, mode) {
+    if (!text) return ""
+    if (mode === "upcase") return text.toUpperCase()
+    if (mode === "downcase") return text.toLowerCase()
+    if (mode === "capitalize") return text.replace(/\S+/g, function(w) {
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    })
+    return text
+  }
+
   function previewText() {
     var oneLine = root.selection.replace(/\s+/g, " ")
     return oneLine.length > 48 ? oneLine.slice(0, 48) + "…" : oneLine
+  }
+
+  // Collapses newlines/runs of whitespace so a multi-line selection previews
+  // as a single row; actual overflow eliding is left to the Text item.
+  function oneLine(text) {
+    return text.replace(/\s+/g, " ").trim()
   }
 
   function open(payloadJson) {
@@ -70,7 +90,7 @@ Item {
   function dismiss() {
     root.close()
     if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "capitalize-text")
+      root.shell.hide((root.manifest && root.manifest.id) || "text-transform")
   }
 
   function toggle() {
@@ -113,7 +133,7 @@ Item {
     visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
-    WlrLayershell.namespace: "omarchy-capitalize-text"
+    WlrLayershell.namespace: "omarchy-text-transform"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     exclusionMode: ExclusionMode.Ignore
@@ -195,21 +215,10 @@ Item {
 
             Text {
               width: parent.width
-              text: "Transform selected text"
+              text: "Transform text"
               color: root.foreground
               font.family: root.fontFamily
               font.pixelSize: Style.font.title
-              elide: Text.ElideRight
-            }
-
-            Text {
-              width: parent.width
-              text: root.hasSelection ? "Selected: “" + root.previewText() + "”"
-                                     : "No text selected — highlight some text first"
-              color: root.selectedText
-              opacity: root.hasSelection ? 0.9 : 0.75
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
               elide: Text.ElideRight
             }
           }
@@ -230,35 +239,52 @@ Item {
             radius: root.cornerRadius
             color: isSelected ? root.selectedBackground : "transparent"
 
-            Row {
+            Item {
               anchors.fill: parent
               anchors.leftMargin: Style.spacing.md
               anchors.rightMargin: Style.spacing.md
-              spacing: Style.spacing.md
 
-              Text {
+              Column {
+                id: col
+                anchors.left: parent.left
+                anchors.right: hint.left
+                anchors.rightMargin: Style.spacing.md + Style.space(6)
                 anchors.verticalCenter: parent.verticalCenter
-                text: modelData.sample
-                color: root.foreground
-                opacity: 0.5
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                elide: Text.ElideRight
-                width: parent.width * 0.45
+                spacing: Style.space(2)
+
+                Text {
+                  id: titleText
+                  width: parent.width
+                  text: modelData.title
+                  color: isSelected ? root.selectedText : root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  font.bold: true
+                  elide: Text.ElideRight
+                }
+
+                Text {
+                  width: parent.width
+                  text: root.transformText(root.oneLine(root.selection), modelData.mode)
+                  color: root.foreground
+                  opacity: isSelected ? 0.9 : 0.6
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  wrapMode: Text.NoWrap
+                  maximumLineCount: 1
+                  elide: Text.ElideRight
+                }
               }
 
+              // Fixed-width reserved slot for the shortcut letter, so the preview
+              // column above always has a stable, predictable boundary to elide
+              // against and never grows into this space.
               Text {
+                id: hint
+                width: Style.space(20)
+                horizontalAlignment: Text.AlignHCenter
                 anchors.verticalCenter: parent.verticalCenter
-                text: modelData.title
-                color: isSelected ? root.selectedText : root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-                width: parent.width * 0.4
-              }
-
-              Text {
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.right: parent.right
                 text: modelData.hint
                 color: isSelected ? root.selectedText : root.foreground
                 opacity: isSelected ? 0.9 : 0.4

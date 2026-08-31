@@ -3,7 +3,7 @@
 # omarchy:summary=Transform highlighted text and replace it in place
 # omarchy:group=text
 # omarchy:args=[--shift-insert] [--copy-only] [--get-selection] <upcase|downcase|capitalize>
-# omarchy:examples=capitalize-text capitalize | omarchy-text capitalize --shift-insert
+# omarchy:examples=text-transform capitalize | text-transform capitalize --shift-insert
 # omarchy:hidden=true
 
 set -u
@@ -11,7 +11,7 @@ set -u
 # Resolve the plugin's bin/ directory so the script keeps working wherever the
 # plugin is installed (and through symlinked checkouts during development).
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd)"
-TRANSFORM="$SCRIPT_DIR/capitalize-text-transform.py"
+TRANSFORM="$SCRIPT_DIR/text-transform.py"
 
 MODE=""
 METHOD="type" # type | shift-insert | copy-only
@@ -19,7 +19,7 @@ GET_SELECTION=false
 
 usage() {
   cat <<'USAGE'
-Usage: capitalize-text [--shift-insert] [--copy-only] <upcase|downcase|capitalize>
+Usage: text-transform [--shift-insert] [--copy-only] <upcase|downcase|capitalize>
 
 Reads the currently highlighted text (primary selection, clipboard as a
 fallback), transforms it, and replaces the highlight in place.
@@ -63,7 +63,7 @@ for arg in "$@"; do
     --get-selection) GET_SELECTION=true ;;
     upcase | downcase | capitalize) MODE="$arg" ;;
     -h | --help) usage; exit 0 ;;
-    *) notify "Capitalize Text" "Unknown argument: $arg" >&2; usage >&2; exit 2 ;;
+    *) notify "Text Transform" "Unknown argument: $arg" >&2; usage >&2; exit 2 ;;
   esac
 done
 
@@ -76,13 +76,13 @@ fi
 
 TEXT="$(get_selection)"
 if [[ -z $TEXT ]]; then
-  notify "Capitalize Text" "Highlight some text first, then try again."
+  notify "Text Transform" "Highlight some text first, then try again."
   exit 1
 fi
 
 OUT="$(printf '%s' "$TEXT" | python3 "$TRANSFORM" "$MODE")" || exit 1
 if [[ -z $OUT ]]; then
-  notify "Capitalize Text" "The selection could not be transformed."
+  notify "Text Transform" "The selection could not be transformed."
   exit 1
 fi
 

@@ -1,15 +1,24 @@
 {
   "schemaVersion": 1,
-  "id": "capitalize-text",
-  "name": "Capitalize Text",
+  "id": "text-transform",
+  "name": "Text Transform",
   "version": "1.0.0",
   "author": "TheRock892",
   "description": "Replace highlighted text with UPPERCASE, lowercase, or Capitalize from a small on-screen picker",
   "kinds": [
-    "overlay"
+    "overlay",
+    "bar-widget"
   ],
   "keepLoaded": true,
   "entryPoints": {
-    "overlay": "CapitalizeText.qml"
+    "overlay": "TextTransform.qml",
+    "barWidget": "TextTransformBar.qml"
+  },
+  "barWidget": {
+    "displayName": "Text Transform",
+    "description": "Opens the text case picker (UPPERCASE, lowercase, Capitalize)",
+    "category": "Utilities",
+    "defaultSection": "right",
+    "allowMultiple": false
   }
 }

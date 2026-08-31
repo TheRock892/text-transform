@@ -1,4 +1,4 @@
-# Capitalize Text
+# Text Transform
 
 An [Omarchy](https://omarchy.org/) shell plugin that transforms the text you
 have highlighted and replaces it in place. Highlight any text, press your
@@ -37,23 +37,23 @@ All of the above ship with Omarchy by default.
 From a git URL (recommended):
 
 ```bash
-omarchy plugin add https://github.com/<you>/capitalize-text --enable
+omarchy plugin add https://github.com/<you>/text-transform --enable
 ```
 
 Or copy the folder into the user plugins directory and enable it:
 
 ```bash
-cp -r capitalize_text ~/.config/omarchy/plugins/capitalize-text
-omarchy plugin enable capitalize-text
+cp -r text-transform ~/.config/omarchy/plugins/text-transform
+omarchy plugin enable text-transform
 ```
 
 Enable only if you skipped `--enable`:
 
 ```bash
-omarchy plugin enable capitalize-text
+omarchy plugin enable text-transform
 ```
 
-The plugin id is `capitalize-text`; change the `id` field in `manifest.json`
+The plugin id is `text-transform`; change the `id` field in `manifest.json`
 to your own `author.plugin` namespace if you publish it.
 
 ## Usage
@@ -63,7 +63,7 @@ to your own `author.plugin` namespace if you publish it.
 Bind a key in `~/.config/hypr/bindings.lua`:
 
 ```lua
-o.bind("SUPER + U", "Transform selected text", "omarchy-shell shell toggle capitalize-text")
+o.bind("SUPER + U", "Transform text", "omarchy-shell shell toggle text-transform")
 ```
 
 Then highlight some text in any application and press
@@ -78,16 +78,16 @@ Then highlight some text in any application and press
 Bind the three operations directly — handy when you only ever use one mode:
 
 ```lua
-o.bind("SUPER + SHIFT + U", nil, "capitalize-text upcase")
-o.bind("SUPER + SHIFT + L", nil, "capitalize-text downcase")
-o.bind("SUPER + SHIFT + C", nil, "capitalize-text capitalize")
+o.bind("SUPER + SHIFT + U", nil, "text-transform upcase")
+o.bind("SUPER + SHIFT + L", nil, "text-transform downcase")
+o.bind("SUPER + SHIFT + C", nil, "text-transform capitalize")
 ```
 
 ## CLI
 
 ```
-capitalize-text [--shift-insert] [--copy-only] <upcase|downcase|capitalize>
-capitalize-text --get-selection
+text-transform [--shift-insert] [--copy-only] <upcase|downcase|capitalize>
+text-transform --get-selection
 ```
 
 The command reads the highlighted text (primary selection, clipboard as a
@@ -101,16 +101,16 @@ effect), and replaces the selection by typing it over the highlight.
 | `--copy-only` | Put the result on the clipboard and stop |
 | `--get-selection` | Print the current selection and exit |
 
-Run `capitalize-text --help` for the full help text.
+Run `text-transform --help` for the full help text.
 
 ## How it works
 
-1. The overlay's preview is fed by `bin/capitalize-text --get-selection`,
+1. The overlay's preview is fed by `bin/text-transform --get-selection`,
    which reads the primary selection via `wl-paste --primary` and falls back
    to the clipboard.
-2. Picking a mode dismisses the overlay and runs `bin/capitalize-text <mode>`.
+2. Picking a mode dismisses the overlay and runs `bin/text-transform <mode>`.
    The script re-reads the selection, converts it with
-   `bin/capitalize-text-transform.py`, copies the result with `wl-copy`, waits
+   `bin/text-transform.py`, copies the result with `wl-copy`, waits
    ~150 ms for the shell to hand focus back, then types it out with `wtype`.
    Because the text is still selected, the app replaces the highlight with the
    typed text.

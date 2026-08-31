@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Transform text read from stdin and write the result to stdout.
 
-Usage: capitalize-text-transform.py <upcase|downcase|capitalize>
+Usage: text-transform.py <upcase|downcase|capitalize>
 
 Kept separate from the bash orchestrator so case conversion is a single,
 testable, Unicode-correct function. Python 3 ships on every Omarchy system,
@@ -33,7 +33,7 @@ def transform(text, mode):
 
 def main():
     if len(sys.argv) != 2 or sys.argv[1] not in MODES:
-        print("usage: capitalize-text-transform.py <%s>" % "|".join(MODES), file=sys.stderr)
+        print("usage: text-transform.py <%s>" % "|".join(MODES), file=sys.stderr)
         return 2
     print(transform(sys.stdin.read(), sys.argv[1]), end="")
 

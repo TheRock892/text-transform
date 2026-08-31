@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Test suite for the capitalize-text plugin. Run from the plugin root:
+# Test suite for the text-transform plugin. Run from the plugin root:
 #   ./tests/run.sh
 # Exits non-zero on the first failing assertion.
 
 set -uo pipefail
 
 PLUGIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-TRANSFORM="$PLUGIN_DIR/bin/capitalize-text-transform.py"
-CLI="$PLUGIN_DIR/bin/capitalize-text"
+TRANSFORM="$PLUGIN_DIR/bin/text-transform.py"
+CLI="$PLUGIN_DIR/bin/text-transform"
 failures=0
 
 note() { printf '%s\n' "$*"; }
@@ -54,9 +54,9 @@ check "unknown mode exits non-zero" "2" "$(printf 'x' | python3 "$TRANSFORM" bog
 check "empty input stays empty"      ""  "$(transform upcase "")"
 
 note "== CLI =="
-[[ -x "$CLI" ]] && check "bin/capitalize-text is executable" "1" "1" \
-  || { note "FAIL - bin/capitalize-text is executable"; failures=$((failures + 1)); }
-[[ -f "$PLUGIN_DIR/bin/capitalize-text-transform.py" ]] || { note "FAIL - transform script missing"; failures=$((failures + 1)); }
+[[ -x "$CLI" ]] && check "bin/text-transform is executable" "1" "1" \
+  || { note "FAIL - bin/text-transform is executable"; failures=$((failures + 1)); }
+[[ -f "$PLUGIN_DIR/bin/text-transform.py" ]] || { note "FAIL - transform script missing"; failures=$((failures + 1)); }
 "$CLI" --help >/dev/null 2>&1 && check "cli --help exits 0" "0" "0" \
   || { note "FAIL - cli --help exits 0"; failures=$((failures + 1)); }
 
