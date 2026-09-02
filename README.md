@@ -127,6 +127,9 @@ Run `text-transform --help` for the full help text.
    Because the text is still selected, the app replaces the highlight with the
    typed text.
 3. Empty selections produce a desktop notification instead of a silent no-op.
+4. Selections are capped at 64 KiB and each helper process (`wl-paste`,
+   `python3`, `wl-copy`, `wtype`) has a 2-second deadline, so an oversized or
+   stuck clipboard producer can't hang the picker or balloon memory.
 
 ## Development
 
