@@ -14,6 +14,13 @@ import sys
 
 MODES = ("upcase", "downcase", "capitalize")
 
+# Selections come from wherever the user (or whatever app owns the clipboard)
+# last put something, so stdin is untrusted-sized input. Cap it independently
+# of whatever the bash caller already truncated to, since Unicode case folding
+# can expand a string (e.g. German "ß" -> "SS" under upper()) and we don't want
+# that growth happening on an unbounded buffer.
+MAX_CHARS = 65536
+
 WORD_RUN = re.compile(r"\S+")
 
 
@@ -35,7 +42,10 @@ def main():
     if len(sys.argv) != 2 or sys.argv[1] not in MODES:
         print("usage: text-transform.py <%s>" % "|".join(MODES), file=sys.stderr)
         return 2
-    print(transform(sys.stdin.read(), sys.argv[1]), end="")
+    # read(N) on a text-mode stream reads at most N characters, so this bounds
+    # memory use regardless of how much the caller wrote to stdin.
+    text = sys.stdin.read(MAX_CHARS)
+    print(transform(text, sys.argv[1]), end="")
 
 
 if __name__ == "__main__":

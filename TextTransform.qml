@@ -266,6 +266,7 @@ Item {
                 Text {
                   width: parent.width
                   text: root.transformText(root.oneLine(root.selection), modelData.mode)
+                  textFormat: Text.PlainText
                   color: root.foreground
                   opacity: isSelected ? 0.9 : 0.6
                   font.family: root.fontFamily

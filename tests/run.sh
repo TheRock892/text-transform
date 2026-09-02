@@ -53,6 +53,10 @@ note "== transform: errors =="
 check "unknown mode exits non-zero" "2" "$(printf 'x' | python3 "$TRANSFORM" bogus >/dev/null 2>&1; echo $?)"
 check "empty input stays empty"      ""  "$(transform upcase "")"
 
+note "== transform: bounded input =="
+oversized_len="$(head -c 200000 /dev/zero | tr '\0' 'a' | python3 "$TRANSFORM" upcase | wc -c)"
+check "output capped at MAX_CHARS" "65536" "$oversized_len"
+
 note "== CLI =="
 [[ -x "$CLI" ]] && check "bin/text-transform is executable" "1" "1" \
   || { note "FAIL - bin/text-transform is executable"; failures=$((failures + 1)); }

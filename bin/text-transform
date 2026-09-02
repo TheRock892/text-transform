@@ -17,6 +17,15 @@ MODE=""
 METHOD="type" # type | shift-insert | copy-only
 GET_SELECTION=false
 
+# Cap on the selection we'll read, and the deadline for each helper process.
+# The selection is whatever the user (or whatever app owns the clipboard) put
+# there, so it's untrusted-sized input; wl-paste/python3/wtype each get a hard
+# timeout with a follow-up SIGKILL so a stuck helper can't hang the picker.
+readonly MAX_BYTES=65536
+readonly HELPER_TIMEOUT=2
+readonly HELPER_KILL_AFTER=1
+run_bounded() { timeout --kill-after="$HELPER_KILL_AFTER" "$HELPER_TIMEOUT" "$@"; }
+
 usage() {
   cat <<'USAGE'
 Usage: text-transform [--shift-insert] [--copy-only] <upcase|downcase|capitalize>
@@ -50,9 +59,12 @@ notify() {
 
 # Highlighted text is the primary selection; fall back to the clipboard when
 # the primary is unset. Nothing is printed when there is no text at all.
+# Each wl-paste call is time-bounded and its output capped at MAX_BYTES so an
+# oversized or stalled clipboard producer can't hang or bloat the pipeline.
 get_selection() {
   local primary
-  primary="$(wl-paste --no-newline --primary 2>/dev/null)" && [[ -n $primary ]] || primary="$(wl-paste --no-newline 2>/dev/null)"
+  primary="$(run_bounded wl-paste --no-newline --primary 2>/dev/null | head -c "$MAX_BYTES")"
+  [[ -n $primary ]] || primary="$(run_bounded wl-paste --no-newline 2>/dev/null | head -c "$MAX_BYTES")"
   printf '%s' "$primary"
 }
 
@@ -80,13 +92,13 @@ if [[ -z $TEXT ]]; then
   exit 1
 fi
 
-OUT="$(printf '%s' "$TEXT" | python3 "$TRANSFORM" "$MODE")" || exit 1
+OUT="$(printf '%s' "$TEXT" | run_bounded python3 "$TRANSFORM" "$MODE")" || exit 1
 if [[ -z $OUT ]]; then
   notify "Text Transform" "The selection could not be transformed."
   exit 1
 fi
 
-printf '%s' "$OUT" | wl-copy
+printf '%s' "$OUT" | run_bounded wl-copy
 
 if [[ $METHOD == copy-only ]]; then
   exit 0
@@ -96,7 +108,7 @@ fi
 sleep 0.15
 
 if [[ $METHOD == shift-insert ]]; then
-  wtype -M shift -k Insert -m shift 2>/dev/null || true
+  run_bounded wtype -M shift -k Insert -m shift 2>/dev/null || true
 else
-  printf '%s' "$OUT" | wtype - 2>/dev/null || true
+  printf '%s' "$OUT" | run_bounded wtype - 2>/dev/null || true
 fi
