@@ -2,8 +2,8 @@
 
 # omarchy:summary=Transform highlighted text and replace it in place
 # omarchy:group=text
-# omarchy:args=[--shift-insert] [--copy-only] [--get-selection] <upcase|downcase|capitalize>
-# omarchy:examples=text-transform capitalize | text-transform capitalize --shift-insert
+# omarchy:args=[--type] [--copy-only] [--get-selection] [--set-shortcut] <upcase|downcase|capitalize>
+# omarchy:examples=text-transform capitalize | text-transform capitalize --type
 # omarchy:hidden=true
 
 set -u
@@ -14,7 +14,11 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && p
 TRANSFORM="$SCRIPT_DIR/text-transform.py"
 
 MODE=""
-METHOD="type" # type | shift-insert | copy-only
+SET_SHORTCUT=false
+# shift-insert pastes the whole result in one go (like a modified copy-paste
+# of the selection); "type" simulates a keystroke per character instead,
+# which some apps surface as a flood of individual edits/undo steps.
+METHOD="shift-insert" # type | shift-insert | copy-only
 GET_SELECTION=false
 
 # Cap on the selection we'll read, and the deadline for each helper process.
@@ -28,10 +32,11 @@ run_bounded() { timeout --kill-after="$HELPER_KILL_AFTER" "$HELPER_TIMEOUT" "$@"
 
 usage() {
   cat <<'USAGE'
-Usage: text-transform [--shift-insert] [--copy-only] <upcase|downcase|capitalize>
+Usage: text-transform [--type] [--copy-only] <upcase|downcase|capitalize>
 
 Reads the currently highlighted text (primary selection, clipboard as a
-fallback), transforms it, and replaces the highlight in place.
+fallback), transforms it, and replaces the highlight in place by pasting the
+result over it with Shift+Insert (a modified copy-paste of the selection).
 
 Operations:
   upcase        EVERY LETTER BECOMES UPPERCASE
@@ -39,9 +44,10 @@ Operations:
   capitalize    The First Letter Of Every Word Is Uppercased
 
 Options:
-  --shift-insert  Paste the result with Shift+Insert instead of typing it
+  --type          Type the result over the selection instead of pasting it
   --copy-only     Copy the transformed text to the clipboard and do nothing else
   --get-selection Print the current selection and exit (used by the overlay preview)
+  --set-shortcut  Prompt for a new keyboard shortcut and save it
   -h, --help      Show this help and exit
 USAGE
 }
@@ -57,6 +63,15 @@ notify() {
   printf '%s: %s\n' "$title" "$message" >&2
 }
 
+mode_label() {
+  case "$1" in
+    upcase) echo "UPPERCASE" ;;
+    downcase) echo "lowercase" ;;
+    capitalize) echo "Capitalize" ;;
+    *) echo "$1" ;;
+  esac
+}
+
 # Highlighted text is the primary selection; fall back to the clipboard when
 # the primary is unset. Nothing is printed when there is no text at all.
 # Each wl-paste call is time-bounded and its output capped at MAX_BYTES so an
@@ -70,9 +85,11 @@ get_selection() {
 
 for arg in "$@"; do
   case "$arg" in
+    --type) METHOD="type" ;;
     --shift-insert) METHOD="shift-insert" ;;
     --copy-only) METHOD="copy-only" ;;
     --get-selection) GET_SELECTION=true ;;
+    --set-shortcut) SET_SHORTCUT=true ;;
     upcase | downcase | capitalize) MODE="$arg" ;;
     -h | --help) usage; exit 0 ;;
     *) notify "Text Transform" "Unknown argument: $arg" >&2; usage >&2; exit 2 ;;
@@ -81,6 +98,61 @@ done
 
 if [[ $GET_SELECTION == true ]]; then
   get_selection
+  exit 0
+fi
+
+# Lets the user see the current shortcut, set a new one, or remove it. Saved
+# as the widget's "shortcut" setting; the Service component picks up the
+# shell.json change and applies it live with hyprctl, so nothing else needs
+# restarting. Menus are given a generous --width since the default (300) was
+# cutting off the prompt text.
+MENU_WIDTH=560
+if [[ $SET_SHORTCUT == true ]]; then
+  command -v omarchy-menu-input >/dev/null 2>&1 && command -v omarchy-menu-select >/dev/null 2>&1 || {
+    notify "Text Transform" "omarchy-menu-input/select are required to change the shortcut."
+    exit 1
+  }
+
+  CURRENT="$(omarchy bar get text-transform shortcut 2>/dev/null)"
+  CURRENT_STATUS=$?
+  HAS_SHORTCUT=true
+  if (( CURRENT_STATUS == 0 )) && [[ -z $CURRENT ]]; then
+    CURRENT_LABEL="(none)"
+    HAS_SHORTCUT=false
+  elif (( CURRENT_STATUS == 0 )); then
+    CURRENT_LABEL="$CURRENT"
+  else
+    CURRENT_LABEL="SUPER + U (default)"
+  fi
+
+  MENU_OPTIONS=("Set a new shortcut…")
+  [[ $HAS_SHORTCUT == true ]] && MENU_OPTIONS+=("Remove the shortcut")
+
+  CHOICE="$(omarchy-menu-select "Shortcut: $CURRENT_LABEL" "${MENU_OPTIONS[@]}" -- --width "$MENU_WIDTH")" || exit 0
+
+  if [[ $CHOICE == "Remove the shortcut" ]]; then
+    omarchy bar set text-transform shortcut "" >/dev/null || {
+      notify "Text Transform" "Could not save the shortcut."
+      exit 1
+    }
+    notify "Text Transform" "Shortcut removed."
+    exit 0
+  fi
+
+  NEW="$(omarchy-menu-input "New shortcut (current: $CURRENT_LABEL), e.g. SUPER + U" --width "$MENU_WIDTH")" || exit 0
+  NEW="$(printf '%s' "$NEW" | xargs 2>/dev/null)"
+  if [[ -z $NEW ]]; then
+    exit 0
+  fi
+  if [[ ! $NEW =~ ^[A-Za-z0-9_]+(\ *\+\ *[A-Za-z0-9_]+)*$ ]]; then
+    notify "Text Transform" "Not a valid shortcut: $NEW"
+    exit 1
+  fi
+  omarchy bar set text-transform shortcut "$NEW" >/dev/null || {
+    notify "Text Transform" "Could not save the shortcut."
+    exit 1
+  }
+  notify "Text Transform" "Shortcut set to $NEW"
   exit 0
 fi
 
@@ -101,14 +173,17 @@ fi
 printf '%s' "$OUT" | run_bounded wl-copy
 
 if [[ $METHOD == copy-only ]]; then
+  notify "Text Transform" "$(mode_label "$MODE") copied to clipboard"
   exit 0
 fi
 
 # Wait for the shell to hand keyboard focus back before typing or pasting.
 sleep 0.15
 
-if [[ $METHOD == shift-insert ]]; then
-  run_bounded wtype -M shift -k Insert -m shift 2>/dev/null || true
-else
+if [[ $METHOD == type ]]; then
   printf '%s' "$OUT" | run_bounded wtype - 2>/dev/null || true
+else
+  run_bounded wtype -M shift -k Insert -m shift 2>/dev/null || true
 fi
+
+notify "Text Transform" "$(mode_label "$MODE") applied"

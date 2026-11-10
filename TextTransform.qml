@@ -7,8 +7,9 @@ import qs.Ui
 
 // On-screen picker for transforming the highlighted text. Summoned with
 // `omarchy-shell shell toggle text-transform` and bound to a key in
-// ~/.config/hypr/bindings.lua. Picking a mode types the transformed text over
-// the current selection; the heavy lifting lives in bin/text-transform.
+// ~/.config/hypr/bindings.lua. Picking a mode pastes the transformed text
+// over the current selection (Shift+Insert), like a modified copy-paste of
+// what was highlighted; the heavy lifting lives in bin/text-transform.
 Item {
   id: root
 
@@ -75,6 +76,15 @@ Item {
   }
 
   function open(payloadJson) {
+    var payload = ({})
+    try { payload = JSON.parse(payloadJson || "{}") } catch (e) { payload = ({}) }
+    // Routed here (rather than opening the picker) by the bar widget's
+    // right-click, which summons with this payload instead of toggling.
+    if (payload && payload.action === "set-shortcut") {
+      if (root.scriptPath) Quickshell.execDetached([root.scriptPath, "--set-shortcut"])
+      return
+    }
+
     root.opened = true
     root.selection = ""
     root.selectedIndex = 0

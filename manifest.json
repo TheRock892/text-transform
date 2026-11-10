@@ -7,18 +7,32 @@
   "description": "Replace highlighted text with UPPERCASE, lowercase, or Capitalize from a small on-screen picker",
   "kinds": [
     "overlay",
-    "bar-widget"
+    "bar-widget",
+    "service"
   ],
   "keepLoaded": true,
   "entryPoints": {
     "overlay": "TextTransform.qml",
-    "barWidget": "TextTransformBar.qml"
+    "barWidget": "TextTransformBar.qml",
+    "service": "Service.qml"
   },
   "barWidget": {
     "displayName": "Text Transform",
-    "description": "Opens the text case picker (UPPERCASE, lowercase, Capitalize)",
+    "description": "Opens the text case picker (UPPERCASE, lowercase, Capitalize). Right-click to change the keyboard shortcut.",
     "category": "Utilities",
     "defaultSection": "center",
-    "allowMultiple": false
+    "allowMultiple": false,
+    "defaults": {
+      "shortcut": "SUPER + U"
+    },
+    "schema": [
+      {
+        "key": "shortcut",
+        "type": "string",
+        "label": "Keyboard shortcut",
+        "description": "Global hotkey that opens the picker, as MOD + MOD + KEY (e.g. \"SUPER + SHIFT + U\"). Applied live with hyprctl; leave empty to not bind one.",
+        "defaultValue": "SUPER + U"
+      }
+    ]
   }
 }
